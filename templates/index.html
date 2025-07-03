@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析仪表板 - 亚马逊全球开店</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        /* 导航菜单 */
+        .nav-menu {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .nav-tab {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .nav-tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .nav-tab.active {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+        
+        /* 控制面板 */
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .control-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .control-group label {
+            font-weight: 600;
+            color: #555;
+            min-width: 80px;
+        }
+        .control-group select, .control-group input {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .control-group select:focus, .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+        .stat-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 1em;
+            font-weight: 500;
+        }
+        .stat-change {
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+        .stat-change.positive {
+            color: #27ae60;
+        }
+        .stat-change.negative {
+            color: #e74c3c;
+        }
+        
+        /* 图表区域 */
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .chart {
+            width: 100%;
+            height: 350px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        /* 快速入口 */
+        .quick-actions {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .quick-actions h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.4em;
+        }
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .action-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .action-card:hover {
+            transform: translateY(-3px);
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+        .action-card .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+        .action-card .title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .action-card .desc {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            .nav-tabs {
+                flex-direction: column;
+            }
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .control-group label {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 数据分析仪表板</h1>
+            <p>Amazon Global Selling - 小程序数据洞察中心</p>
+        </div>
+        
+        <!-- 导航菜单 -->
+        <div class="nav-menu">
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showDashboard()">📊 总览</button>
+                <button class="nav-tab" onclick="navigateTo('user-path.html')">🛤️ 用户路径分析</button>
+                <button class="nav-tab" onclick="navigateTo('event-analysis.html')">📈 事件分析</button>
+                <button class="nav-tab" onclick="navigateTo('funnel-analysis.html')">🔄 漏斗分析</button>
+                <button class="nav-tab" onclick="navigateTo('retention-analysis.html')">💎 留存分析</button>
+            </div>
+        </div>
+        
+        <!-- 控制面板 -->
+        <div class="controls">
+            <div class="control-group">
+                <label>时间范围:</label>
+                <select id="timeRange">
+                    <option value="today">今天</option>
+                    <option value="yesterday">昨天</option>
+                    <option value="last7days">最近7天</option>
+                    <option value="last30days">最近30天</option>
+                </select>
+                
+                <button class="btn" onclick="loadDashboardData()">🔄 刷新数据</button>
+                <button class="btn" onclick="exportDashboard()">📊 导出报告</button>
+            </div>
+        </div>
+        
+        <!-- 核心指标卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value" id="totalUsers">0</div>
+                <div class="stat-label">总用户数 (UV)</div>
+                <div class="stat-change positive" id="usersChange">+0.0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📱</div>
+                <div class="stat-value" id="totalPageViews">0</div>
+                <div class="stat-label">总访问量 (PV)</div>
+                <div class="stat-change positive" id="pvChange">+0.0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-value" id="avgSessionDuration">0s</div>
+                <div class="stat-label">平均会话时长</div>
+                <div class="stat-change" id="durationChange">+0.0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-value" id="bounceRate">0%</div>
+                <div class="stat-label">跳出率</div>
+                <div class="stat-change negative" id="bounceChange">-0.0%</div>
+            </div>
+        </div>
+        
+        <!-- 图表区域 -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <div class="chart-title">📈 访问趋势</div>
+                <div class="chart" id="trendChart"></div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-title">📱 设备分布</div>
+                <div class="chart" id="deviceChart"></div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <div class="chart-title">🕒 24小时活跃度分布</div>
+                <div class="chart" id="hourlyChart"></div>
+            </div>
+        </div>
+        
+        <!-- 快速操作入口 -->
+        <div class="quick-actions">
+            <h3>🚀 快速分析入口</h3>
+            <div class="action-grid">
+                <div class="action-card" onclick="navigateTo('user-path.html')">
+                    <div class="icon">🛤️</div>
+                    <div class="title">用户路径分析</div>
+                    <div class="desc">分析用户在应用中的行为路径和转化</div>
+                </div>
+                <div class="action-card" onclick="navigateTo('event-analysis.html')">
+                    <div class="icon">📈</div>
+                    <div class="title">事件分析</div>
+                    <div class="desc">深入分析特定事件的触发情况</div>
+                </div>
+                <div class="action-card" onclick="navigateTo('funnel-analysis.html')">
+                    <div class="icon">🔄</div>
+                    <div class="title">漏斗分析</div>
+                    <div class="desc">分析用户转化路径和流失节点</div>
+                </div>
+                <div class="action-card" onclick="navigateTo('retention-analysis.html')">
+                    <div class="icon">💎</div>
+                    <div class="title">留存分析</div>
+                    <div class="desc">分析用户留存率和活跃度变化</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trendChart, deviceChart, hourlyChart;
+        let isLoading = false;
+
+        function initCharts() {
+            trendChart = echarts.init(document.getElementById('trendChart'));
+            deviceChart = echarts.init(document.getElementById('deviceChart'));
+            hourlyChart = echarts.init(document.getElementById('hourlyChart'));
+            
+            window.addEventListener('resize', () => {
+                trendChart.resize();
+                deviceChart.resize();
+                hourlyChart.resize();
+            });
+        }
+
+        function showLoading() {
+            const loadingOption = {
+                title: {
+                    text: '正在加载数据...',
+                    left: 'center',
+                    top: 'center',
+                    textStyle: { color: '#666', fontSize: 16 }
+                }
+            };
+            
+            trendChart.clear();
+            trendChart.setOption(loadingOption);
+            deviceChart.clear();
+            deviceChart.setOption(loadingOption);
+            hourlyChart.clear();
+            hourlyChart.setOption(loadingOption);
+        }
+
+        function renderTrendChart(data) {
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' }
+                },
+                legend: {
+                    data: ['UV', 'PV']
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates || []
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [
+                    {
+                        name: 'UV',
+                        type: 'line',
+                        data: data.uv || [],
+                        smooth: true,
+                        itemStyle: { color: '#667eea' }
+                    },
+                    {
+                        name: 'PV',
+                        type: 'line',
+                        data: data.pv || [],
+                        smooth: true,
+                        itemStyle: { color: '#764ba2' }
+                    }
+                ]
+            };
+            
+            trendChart.clear();
+            trendChart.setOption(option);
+        }
+
+        function renderDeviceChart(data) {
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left'
+                },
+                series: [{
+                    name: '设备类型',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    data: data.devices || [
+                        { value: 60, name: 'iPhone' },
+                        { value: 30, name: 'Android' },
+                        { value: 10, name: '其他' }
+                    ]
+                }]
+            };
+            
+            deviceChart.clear();
+            deviceChart.setOption(option);
+        }
+
+        function renderHourlyChart(data) {
+            const option = {
+                tooltip: {
+                    position: 'top'
+                },
+                grid: {
+                    height: '50%',
+                    top: '10%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    splitArea: {
+                        show: true
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    splitArea: {
+                        show: true
+                    }
+                },
+                visualMap: {
+                    min: 0,
+                    max: 1000,
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '15%'
+                },
+                series: [{
+                    name: '活跃用户数',
+                    type: 'heatmap',
+                    data: data.hourlyData || [],
+                    label: {
+                        show: true
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            hourlyChart.clear();
+            hourlyChart.setOption(option);
+        }
+
+        function updateStatsCards(data) {
+            document.getElementById('totalUsers').textContent = (data.total_users || 0).toLocaleString();
+            document.getElementById('totalPageViews').textContent = (data.total_pv || 0).toLocaleString();
+            document.getElementById('avgSessionDuration').textContent = `${(data.avg_session_duration || 0).toFixed(1)}s`;
+            document.getElementById('bounceRate').textContent = `${(data.bounce_rate || 0).toFixed(1)}%`;
+            
+            // 更新变化率（示例数据）
+            document.getElementById('usersChange').textContent = '+12.5%';
+            document.getElementById('pvChange').textContent = '+8.3%';
+            document.getElementById('durationChange').textContent = '+5.2%';
+            document.getElementById('bounceChange').textContent = '-3.1%';
+        }
+
+        async function loadDashboardData() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            showLoading();
+
+            try {
+                const timeRange = document.getElementById('timeRange').value;
+                const response = await fetch(`/api/dashboard?timeRange=${timeRange}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                updateStatsCards(data.metrics || {});
+                renderTrendChart(data.trend || {});
+                renderDeviceChart(data.device || {});
+                renderHourlyChart(data.hourly || {});
+                
+                console.log('仪表板数据加载完成');
+            } catch (error) {
+                console.error('加载仪表板数据失败:', error);
+                // 使用示例数据
+                loadMockData();
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        function loadMockData() {
+            // 示例数据
+            const mockData = {
+                metrics: {
+                    total_users: 1250,
+                    total_pv: 5680,
+                    avg_session_duration: 125.5,
+                    bounce_rate: 35.2
+                },
+                trend: {
+                    dates: ['06-26', '06-27', '06-28', '06-29', '06-30', '07-01', '07-02'],
+                    uv: [120, 150, 180, 220, 280, 350, 320],
+                    pv: [450, 580, 720, 890, 1100, 1350, 1250]
+                },
+                device: {
+                    devices: [
+                        { value: 750, name: 'iPhone' },
+                        { value: 400, name: 'Android' },
+                        { value: 100, name: '其他' }
+                    ]
+                },
+                hourly: {
+                    hourlyData: Array.from({length: 24}, (_, hour) => [
+                        hour, 
+                        0, 
+                        Math.floor(Math.random() * 500 + 100)
+                    ])
+                }
+            };
+            
+            updateStatsCards(mockData.metrics);
+            renderTrendChart(mockData.trend);
+            renderDeviceChart(mockData.device);
+            renderHourlyChart(mockData.hourly);
+        }
+
+        function navigateTo(page) {
+            // 这里可以实现页面跳转逻辑
+            
+            window.location.href = page;
+        }
+
+        function showDashboard() {
+            // 已经在仪表板页面
+            console.log('当前在仪表板页面');
+        }
+
+        function exportDashboard() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                time_range: document.getElementById('timeRange').value,
+                metrics: {
+                    total_users: document.getElementById('totalUsers').textContent,
+                    total_pv: document.getElementById('totalPageViews').textContent,
+                    avg_duration: document.getElementById('avgSessionDuration').textContent,
+                    bounce_rate: document.getElementById('bounceRate').textContent
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dashboard_report_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('仪表板页面加载完成，初始化图表...');
+            initCharts();
+            
+            setTimeout(() => {
+                loadDashboardData();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

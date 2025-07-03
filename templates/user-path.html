@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户路径分析 - 亚马逊全球开店</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-right: 20px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .header-content h1 {
+            font-size: 2.2em;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .header-content p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+        
+        /* 控制面板 */
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .control-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+        .control-section h3 {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .control-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            font-weight: 500;
+            color: #555;
+            min-width: 120px;
+        }
+        .control-group select, .control-group input {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            min-width: 150px;
+        }
+        .control-group select:focus, .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .control-group select:disabled {
+            background: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        /* 分析选项选择 */
+        .options-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .category-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .category-tab {
+            padding: 12px 16px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            text-align: center;
+        }
+        .category-tab:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .category-tab.active {
+            border-color: #667eea;
+            background: #e3f2fd;
+            color: #667eea;
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .option-item:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .option-item.selected {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+        .option-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
+        .option-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .option-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+        .option-type {
+            font-size: 11px;
+            color: #666;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            width: fit-content;
+        }
+        .option-count {
+            font-size: 12px;
+            color: #666;
+            margin-left: auto;
+            font-weight: 600;
+        }
+        
+        /* 路径定义 */
+        .path-definition {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .path-option {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        .path-option.active {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+        .path-option input[type="radio"] {
+            margin-right: 8px;
+        }
+        .path-option label {
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+        }
+        .path-option select {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        /* 选中统计 */
+        .selection-summary {
+            background: #e8f5e8;
+            border: 1px solid #c3e6c3;
+            color: #2e7d2e;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        /* 按钮 */
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* 图表区域 */
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .chart {
+            width: 100%;
+            height: 450px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        /* 路径表格 */
+        .path-table {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow-x: auto;
+        }
+        .path-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .path-table th, .path-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .path-table th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+        }
+        .path-table tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        /* 提示信息 */
+        .tip-box {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            color: #1976d2;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        
+        /* 加载状态 */
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .control-group label {
+                min-width: auto;
+            }
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .back-btn {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
+            .path-definition {
+                grid-template-columns: 1fr;
+            }
+            .options-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-btn" onclick="goBack()">← 返回</button>
+            <div class="header-content">
+                <h1>🛤️ 用户路径分析</h1>
+                <p>深入分析用户在小程序中的行为路径和转化情况</p>
+            </div>
+        </div>
+        
+        <!-- 控制面板 -->
+        <div class="controls">
+            <!-- 分析选项选择 -->
+            <div class="control-section">
+                <h3>📍 选择分析选项 <small>(事件、页面、标题)</small></h3>
+                
+                <div class="options-container">
+                    <div class="category-tabs">
+                        <div class="category-tab active" data-category="all" onclick="switchCategory('all')">
+                            📊 全部选项
+                        </div>
+                        <div class="category-tab" data-category="events" onclick="switchCategory('events')">
+                            ⚡ 事件类型
+                        </div>
+                        <div class="category-tab" data-category="pages" onclick="switchCategory('pages')">
+                            📄 页面路径
+                        </div>
+                        <div class="category-tab" data-category="urls" onclick="switchCategory('urls')">
+                            🔗 URL路径
+                        </div>
+                        <div class="category-tab" data-category="titles" onclick="switchCategory('titles')">
+                            🏷️ 页面标题
+                        </div>
+                        <div class="category-tab" data-category="referrers" onclick="switchCategory('referrers')">
+                            🌐 来源渠道
+                        </div>
+                    </div>
+                    
+                    <div class="options-grid" id="optionsGrid">
+                        <!-- 动态生成选项 -->
+                    </div>
+                </div>
+                
+                <div class="selection-summary" id="selectionSummary">
+                    💡 暂无选中项，请选择要分析的事件、页面或标题
+                </div>
+                
+                <div class="tip-box">
+                    💡 可以混合选择事件、页面路径、URL路径、页面标题和来源渠道进行综合分析。支持按类别快速筛选选项。
+                </div>
+            </div>
+            
+            <!-- 路径定义 -->
+            <div class="control-section">
+                <h3>🎯 路径定义条件 <span style="color: #e74c3c;">(二选一)</span></h3>
+                <div class="path-definition">
+                    <div class="path-option active" id="startOption">
+                        <label>
+                            <input type="radio" name="pathType" value="start" checked onchange="handlePathTypeChange()">
+                            按起始选项筛选
+                        </label>
+                        <select id="startOptionSelect">
+                            <option value="">任意选项</option>
+                        </select>
+                    </div>
+                    
+                    <div class="path-option" id="endOption">
+                        <label>
+                            <input type="radio" name="pathType" value="end" onchange="handlePathTypeChange()">
+                            按结束选项筛选
+                        </label>
+                        <select id="endOptionSelect" disabled>
+                            <option value="">任意选项</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="tip-box">
+                    💡 选择路径的起始条件或结束条件，不能同时设置。起始选项：分析从某个选项开始的路径；结束选项：分析以某个选项结束的路径
+                </div>
+            </div>
+            
+            <!-- 其他筛选条件 -->
+            <div class="control-section">
+                <h3>⚙️ 高级筛选条件</h3>
+                <div class="control-group">
+                    <label>路径长度:</label>
+                    <select id="pathLength">
+                        <option value="all">不限制</option>
+                        <option value="2-3">2-3步</option>
+                        <option value="4-5">4-5步</option>
+                        <option value="6-8">6-8步</option>
+                        <option value="9+">9步以上</option>
+                    </select>
+                    
+                    <label>最小用户数:</label>
+                    <input type="number" id="minConversions" value="5" min="1" max="100">
+                    
+                    <label>时间范围:</label>
+                    <select id="timeRange">
+                        <option value="today">今天</option>
+                        <option value="yesterday">昨天</option>
+                        <option value="last7days">最近7天</option>
+                        <option value="last30days">最近30天</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>关键词筛选:</label>
+                    <input type="text" id="pageFilter" placeholder="输入关键词过滤路径（如：home, product）">
+                    
+                    <button class="btn" id="analyzeBtn" onclick="analyzeUserPath()">🔍 开始分析</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">🔄 重置条件</button>
+                    <button class="btn btn-secondary" onclick="loadAnalysisOptions()">📊 刷新选项</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 图表区域 -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <div class="chart-title">🔄 用户路径流转图 <small>(桑基图)</small></div>
+                <div class="chart" id="pathFlowChart"></div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-title">📊 路径步骤分布 <small>(饼图)</small></div>
+                <div class="chart" id="stepDistributionChart"></div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <div class="chart-title">⏱️ 路径转化分析 <small>(漏斗图)</small></div>
+                <div class="chart" id="pathConversionChart"></div>
+            </div>
+        </div>
+        
+        <!-- 详细路径表格 -->
+        <div class="path-table">
+            <div class="chart-title">📋 详细路径分析结果</div>
+            <table id="pathTable">
+                <thead>
+                    <tr>
+                        <th>路径序列</th>
+                        <th>用户数</th>
+                        <th>占比</th>
+                        <th>平均时长</th>
+                        <th>转化率</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="pathTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let pathFlowChart, stepDistributionChart, pathConversionChart;
+        let isLoading = false;
+        let allAnalysisOptions = {
+            events: [],
+            pages: [],
+            urls: [],
+            titles: [],
+            referrers: [],
+            all: []
+        };
+        let currentCategory = 'all';
+
+        function initCharts() {
+            pathFlowChart = echarts.init(document.getElementById('pathFlowChart'));
+            stepDistributionChart = echarts.init(document.getElementById('stepDistributionChart'));
+            pathConversionChart = echarts.init(document.getElementById('pathConversionChart'));
+            
+            window.addEventListener('resize', () => {
+                pathFlowChart.resize();
+                stepDistributionChart.resize();
+                pathConversionChart.resize();
+            });
+        }
+
+        async function loadAnalysisOptions() {
+            try {
+                console.log('开始加载分析选项...');
+                
+                // 显示加载状态
+                document.querySelector('.controls').classList.add('loading');
+                
+                const response = await fetch('/api/analysis-options');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                allAnalysisOptions = data.options || {
+                    events: [],
+                    pages: [],
+                    titles: [],
+                    all: []
+                };
+                
+                renderOptionsGrid();
+                updatePathDefinitionOptions();
+                
+                console.log('分析选项加载完成:', {
+                    events: allAnalysisOptions.events.length,
+                    pages: allAnalysisOptions.pages.length,
+                    urls: allAnalysisOptions.urls.length,
+                    titles: allAnalysisOptions.titles.length,
+                    referrers: allAnalysisOptions.referrers.length,
+                    total: allAnalysisOptions.all.length
+                });
+                
+            } catch (error) {
+                console.error('加载分析选项失败:', error);
+                // 使用mock数据
+                loadMockAnalysisOptions();
+            } finally {
+                document.querySelector('.controls').classList.remove('loading');
+            }
+        }
+
+        function loadMockAnalysisOptions() {
+            // 模拟数据
+            allAnalysisOptions = {
+                events: [
+                    { key: 'event_$MPLaunch', value: '$MPLaunch', display_name: '小程序启动', count: 15420, type: 'event', category: '事件类型' },
+                    { key: 'event_$MPShow', value: '$MPShow', display_name: '页面显示', count: 12850, type: 'event', category: '事件类型' },
+                    { key: 'event_$MPViewScreen', value: '$MPViewScreen', display_name: '页面浏览', count: 11250, type: 'event', category: '事件类型' },
+                    { key: 'event_click', value: 'click', display_name: '点击事件', count: 8970, type: 'event', category: '事件类型' },
+                    { key: 'event_search', value: 'search', display_name: '搜索', count: 3420, type: 'event', category: '事件类型' },
+                    { key: 'event_$track_signup', value: '$track_signup', display_name: '用户注册', count: 1250, type: 'event', category: '事件类型' }
+                ],
+                pages: [
+                    { key: 'page_index', value: 'pages/index/index', display_name: '页面: index', count: 8500, type: 'page', category: '页面路径' },
+                    { key: 'page_product', value: 'pages/product/detail', display_name: '页面: product', count: 5200, type: 'page', category: '页面路径' },
+                    { key: 'page_cart', value: 'pages/cart/cart', display_name: '页面: cart', count: 2800, type: 'page', category: '页面路径' },
+                    { key: 'page_search', value: 'pages/search/search', display_name: '页面: search', count: 2100, type: 'page', category: '页面路径' },
+                    { key: 'page_user', value: 'pages/user/profile', display_name: '页面: user', count: 1800, type: 'page', category: '页面路径' }
+                ],
+                urls: [
+                    { key: 'url_index', value: '/index.html', display_name: 'URL: index', count: 6500, type: 'url', category: 'URL路径' },
+                    { key: 'url_product', value: '/product/detail', display_name: 'URL: product', count: 4200, type: 'url', category: 'URL路径' },
+                    { key: 'url_api', value: '/api/data', display_name: 'URL: api', count: 3100, type: 'url', category: 'URL路径' },
+                    { key: 'url_static', value: '/static/js', display_name: 'URL: static', count: 2500, type: 'url', category: 'URL路径' }
+                ],
+                titles: [
+                    { key: 'title_首页', value: '首页', display_name: '标题: 首页', count: 8500, type: 'title', category: '页面标题' },
+                    { key: 'title_商品详情', value: '商品详情', display_name: '标题: 商品详情', count: 5200, type: 'title', category: '页面标题' },
+                    { key: 'title_购物车', value: '购物车', display_name: '标题: 购物车', count: 2800, type: 'title', category: '页面标题' },
+                    { key: 'title_搜索页面', value: '搜索页面', display_name: '标题: 搜索页面', count: 2100, type: 'title', category: '页面标题' }
+                ],
+                referrers: [
+                    { key: 'referrer_baidu.com', value: 'https://www.baidu.com', display_name: '来源: baidu.com', count: 3500, type: 'referrer', category: '来源渠道' },
+                    { key: 'referrer_google.com', value: 'https://www.google.com', display_name: '来源: google.com', count: 2100, type: 'referrer', category: '来源渠道' },
+                    { key: 'referrer_wechat', value: 'https://mp.weixin.qq.com', display_name: '来源: wechat', count: 1800, type: 'referrer', category: '来源渠道' },
+                    { key: 'referrer_direct', value: 'direct', display_name: '来源: direct', count: 4200, type: 'referrer', category: '来源渠道' }
+                ],
+                all: []
+            };
+            
+            // 合并所有选项
+            allAnalysisOptions.all = [
+                ...allAnalysisOptions.events,
+                ...allAnalysisOptions.pages,
+                ...allAnalysisOptions.urls,
+                ...allAnalysisOptions.titles,
+                ...allAnalysisOptions.referrers
+            ];
+            
+            renderOptionsGrid();
+            updatePathDefinitionOptions();
+        }
+
+        function switchCategory(category) {
+            currentCategory = category;
+            
+            // 更新标签样式
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-category="${category}"]`).classList.add('active');
+            
+            renderOptionsGrid();
+        }
+
+        function renderOptionsGrid() {
+            const optionsGrid = document.getElementById('optionsGrid');
+            optionsGrid.innerHTML = '';
+            
+            const optionsToShow = currentCategory === 'all' 
+                ? allAnalysisOptions.all 
+                : allAnalysisOptions[currentCategory] || [];
+            
+            if (optionsToShow.length === 0) {
+                optionsGrid.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">暂无可用选项<br><small>请刷新数据或检查数据源</small></div>';
+                return;
+            }
+            
+            optionsToShow.forEach(option => {
+                const optionItem = document.createElement('div');
+                optionItem.className = 'option-item';
+                optionItem.setAttribute('data-key', option.key);
+                
+                // 检查是否默认选中
+                const isDefaultSelected = option.type === 'event' && 
+                    ['$MPLaunch', '$MPShow', '$MPViewScreen'].includes(option.value);
+                
+                if (isDefaultSelected) {
+                    optionItem.classList.add('selected');
+                }
+                
+                optionItem.innerHTML = `
+                    <input type="checkbox" 
+                           id="option_${option.key}" 
+                           value="${option.key}" 
+                           ${isDefaultSelected ? 'checked' : ''}
+                           onchange="handleOptionSelection(this)">
+                    <div class="option-content">
+                        <div class="option-label">${option.display_name}</div>
+                        <div class="option-type">${option.category}</div>
+                    </div>
+                    <div class="option-count">${option.count.toLocaleString()}</div>
+                `;
+                
+                optionItem.addEventListener('click', (e) => {
+                    if (e.target.type !== 'checkbox') {
+                        const checkbox = optionItem.querySelector('input[type="checkbox"]');
+                        checkbox.checked = !checkbox.checked;
+                        handleOptionSelection(checkbox);
+                    }
+                });
+                
+                optionsGrid.appendChild(optionItem);
+            });
+            
+            updateSelectionSummary();
+        }
+
+        function handleOptionSelection(checkbox) {
+            const optionItem = checkbox.closest('.option-item');
+            if (checkbox.checked) {
+                optionItem.classList.add('selected');
+            } else {
+                optionItem.classList.remove('selected');
+            }
+            
+            updateSelectionSummary();
+            updatePathDefinitionOptions();
+        }
+
+        function updateSelectionSummary() {
+            const selectedOptions = getSelectedOptions();
+            const summary = document.getElementById('selectionSummary');
+            
+            if (selectedOptions.length === 0) {
+                summary.textContent = '💡 暂无选中项，请选择要分析的事件、页面、URL、标题或来源';
+                summary.style.background = '#fff3cd';
+                summary.style.borderColor = '#ffeaa7';
+                summary.style.color = '#856404';
+            } else {
+                const eventCount = selectedOptions.filter(opt => opt.startsWith('event_')).length;
+                const pageCount = selectedOptions.filter(opt => opt.startsWith('page_')).length;
+                const urlCount = selectedOptions.filter(opt => opt.startsWith('url_')).length;
+                const titleCount = selectedOptions.filter(opt => opt.startsWith('title_')).length;
+                const referrerCount = selectedOptions.filter(opt => opt.startsWith('referrer_')).length;
+                
+                const parts = [];
+                if (eventCount > 0) parts.push(`事件 ${eventCount} 个`);
+                if (pageCount > 0) parts.push(`页面 ${pageCount} 个`);
+                if (urlCount > 0) parts.push(`URL ${urlCount} 个`);
+                if (titleCount > 0) parts.push(`标题 ${titleCount} 个`);
+                if (referrerCount > 0) parts.push(`来源 ${referrerCount} 个`);
+                
+                summary.innerHTML = `✅ 已选中 ${selectedOptions.length} 个选项: ${parts.join(', ')}`;
+                summary.style.background = '#e8f5e8';
+                summary.style.borderColor = '#c3e6c3';
+                summary.style.color = '#2e7d2e';
+            }
+        }
+
+        function getSelectedOptions() {
+            const checkboxes = document.querySelectorAll('#optionsGrid input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function updatePathDefinitionOptions() {
+            const selectedOptions = getSelectedOptions();
+            const startSelect = document.getElementById('startOptionSelect');
+            const endSelect = document.getElementById('endOptionSelect');
+            
+            // 清空现有选项
+            startSelect.innerHTML = '<option value="">任意选项</option>';
+            endSelect.innerHTML = '<option value="">任意选项</option>';
+            
+            // 添加选中的选项
+            selectedOptions.forEach(optionKey => {
+                const option = findOptionByKey(optionKey);
+                if (option) {
+                    const displayName = option.display_name;
+                    
+                    const option1 = document.createElement('option');
+                    option1.value = optionKey;
+                    option1.textContent = displayName;
+                    startSelect.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = optionKey;
+                    option2.textContent = displayName;
+                    endSelect.appendChild(option2);
+                }
+            });
+        }
+
+        function findOptionByKey(key) {
+            return allAnalysisOptions.all.find(option => option.key === key);
+        }
+
+        function handlePathTypeChange() {
+            const pathType = document.querySelector('input[name="pathType"]:checked').value;
+            const startOption = document.getElementById('startOption');
+            const endOption = document.getElementById('endOption');
+            const startSelect = document.getElementById('startOptionSelect');
+            const endSelect = document.getElementById('endOptionSelect');
+            
+            if (pathType === 'start') {
+                startOption.classList.add('active');
+                endOption.classList.remove('active');
+                startSelect.disabled = false;
+                endSelect.disabled = true;
+                endSelect.value = '';
+            } else {
+                startOption.classList.remove('active');
+                endOption.classList.add('active');
+                startSelect.disabled = true;
+                endSelect.disabled = false;
+                startSelect.value = '';
+            }
+        }
+
+        function getAnalysisParams() {
+            const selectedOptions = getSelectedOptions();
+            const pathType = document.querySelector('input[name="pathType"]:checked').value;
+            
+            return {
+                selectedOptions: selectedOptions,
+                pathType: pathType,
+                startOption: pathType === 'start' ? document.getElementById('startOptionSelect').value : '',
+                endOption: pathType === 'end' ? document.getElementById('endOptionSelect').value : '',
+                pathLength: document.getElementById('pathLength').value,
+                minConversions: parseInt(document.getElementById('minConversions').value) || 5,
+                timeRange: document.getElementById('timeRange').value,
+                pageFilter: document.getElementById('pageFilter').value.trim()
+            };
+        }
+
+        function showLoading() {
+            const loadingOption = {
+                title: {
+                    text: '正在分析路径数据...',
+                    left: 'center',
+                    top: 'center',
+                    textStyle: { color: '#667eea', fontSize: 16 }
+                }
+            };
+            
+            pathFlowChart.clear();
+            pathFlowChart.setOption(loadingOption);
+            stepDistributionChart.clear();
+            stepDistributionChart.setOption(loadingOption);
+            pathConversionChart.clear();
+            pathConversionChart.setOption(loadingOption);
+            
+            // 禁用分析按钮
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '🔄 分析中...';
+        }
+
+        function hideLoading() {
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = false;
+            analyzeBtn.textContent = '🔍 开始分析';
+        }
+
+        async function analyzeUserPath() {
+            if (isLoading) return;
+            
+            const params = getAnalysisParams();
+            
+            // 验证参数
+            if (params.selectedOptions.length === 0) {
+                alert('请至少选择一个分析选项');
+                return;
+            }
+            
+            isLoading = true;
+            showLoading();
+
+            try {
+                console.log('开始用户路径分析:', params);
+                
+                // 构建查询参数
+                const queryParams = new URLSearchParams();
+                queryParams.append('selectedOptions', params.selectedOptions.join(','));
+                queryParams.append('pathType', params.pathType);
+                queryParams.append('startOption', params.startOption);
+                queryParams.append('endOption', params.endOption);
+                queryParams.append('pathLength', params.pathLength);
+                queryParams.append('minConversions', params.minConversions);
+                queryParams.append('timeRange', params.timeRange);
+                queryParams.append('pageFilter', params.pageFilter);
+                
+                const response = await fetch(`/api/user-path-analysis?${queryParams}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                renderPathFlowChart(data.sankey || {});
+                renderStepDistributionChart(data.stepDistribution || {});
+                renderPathConversionChart(data.pathConversion || {});
+                updatePathTable(data.pathStats || {});
+                
+                console.log('用户路径分析完成');
+            } catch (error) {
+                console.error('用户路径分析失败:', error);
+                // 使用示例数据
+                loadMockPathData();
+            } finally {
+                isLoading = false;
+                hideLoading();
+            }
+        }
+
+        function renderPathFlowChart(sankeyData) {
+            if (!sankeyData || !sankeyData.nodes || !sankeyData.links || 
+                sankeyData.nodes.length === 0 || sankeyData.links.length === 0) {
+                pathFlowChart.setOption({
+                    title: {
+                        text: '暂无路径流转数据',
+                        subtext: '请调整筛选条件后重新分析',
+                        left: 'center',
+                        top: 'center',
+                        textStyle: { color: '#999', fontSize: 16 }
+                    }
+                });
+                return;
+            }
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        if (params.dataType === 'edge') {
+                            return `${params.data.sourceName || '起点'} → ${params.data.targetName || '终点'}<br/>
+                                   用户数: ${params.data.value}<br/>
+                                   转换率: ${((params.data.value / (params.data.sourceTotal || params.data.value)) * 100).toFixed(1)}%`;
+                        }
+                        return `${params.name}<br/>访问用户: ${params.value || 0}`;
+                    }
+                },
+                series: [{
+                    type: 'sankey',
+                    data: sankeyData.nodes,
+                    links: sankeyData.links,
+                    emphasis: { focus: 'adjacency' },
+                    lineStyle: {
+                        color: 'gradient',
+                        curveness: 0.5,
+                        opacity: 0.6
+                    },
+                    label: {
+                        fontSize: 11,
+                        fontWeight: 'bold',
+                        color: '#333'
+                    },
+                    itemStyle: {
+                        borderWidth: 1,
+                        borderColor: '#fff'
+                    },
+                    left: '3%',
+                    right: '20%',
+                    top: '5%',
+                    bottom: '5%'
+                }]
+            };
+            
+            pathFlowChart.clear();
+            pathFlowChart.setOption(option);
+        }
+
+        function renderStepDistributionChart(data) {
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} 条路径 ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    textStyle: { fontSize: 11 }
+                },
+                series: [{
+                    name: '路径步骤分布',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: data.steps || [
+                        { value: 35, name: '2-3步路径' },
+                        { value: 30, name: '4-5步路径' },
+                        { value: 25, name: '6-8步路径' },
+                        { value: 10, name: '9步以上' }
+                    ],
+                    itemStyle: {
+                        borderRadius: 8,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        fontSize: 11
+                    }
+                }]
+            };
+            
+            stepDistributionChart.clear();
+            stepDistributionChart.setOption(option);
+        }
+
+        function renderPathConversionChart(data) {
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        return `${params.name}<br/>
+                               用户数: ${params.value}<br/>
+                               转化率: ${((params.value / (data.totalUsers || params.value)) * 100).toFixed(1)}%`;
+                    }
+                },
+                series: [{
+                    name: '路径转化漏斗',
+                    type: 'funnel',
+                    left: '10%',
+                    right: '10%',
+                    top: '5%',
+                    bottom: '5%',
+                    data: data.funnelData || [
+                        { value: 1000, name: '进入应用' },
+                        { value: 800, name: '浏览页面' },
+                        { value: 600, name: '产生交互' },
+                        { value: 300, name: '深度使用' },
+                        { value: 100, name: '完成目标' }
+                    ],
+                    itemStyle: {
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    },
+                    label: {
+                        show: true,
+                        fontSize: 12,
+                        position: 'inside'
+                    },
+                    labelLine: {
+                        length: 10,
+                        lineStyle: {
+                            width: 1,
+                            type: 'solid'
+                        }
+                    }
+                }]
+            };
+            
+            pathConversionChart.clear();
+            pathConversionChart.setOption(option);
+        }
+
+        function updatePathTable(pathStats) {
+            const tbody = document.getElementById('pathTableBody');
+            tbody.innerHTML = '';
+            
+            if (!pathStats || Object.keys(pathStats).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999; padding: 30px;">暂无路径数据<br><small>请调整筛选条件后重新分析</small></td></tr>';
+                return;
+            }
+
+            const sortedPaths = Object.entries(pathStats)
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 50);
+            
+            const totalPaths = sortedPaths.reduce((sum, [_, stats]) => sum + stats.count, 0);
+            
+            sortedPaths.forEach(([path, stats]) => {
+                const row = document.createElement('tr');
+                const percentage = ((stats.count / totalPaths) * 100).toFixed(1);
+                
+                row.innerHTML = `
+                    <td title="${path}" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${path.length > 60 ? path.substring(0, 60) + '...' : path}
+                    </td>
+                    <td><strong>${stats.count}</strong></td>
+                    <td>${percentage}%</td>
+                    <td>${stats.avgDuration || '0s'}</td>
+                    <td>${stats.conversionRate || '0%'}</td>
+                    <td>
+                        <button class="btn" style="padding: 5px 10px; margin: 0; font-size: 12px;" 
+                                onclick="analyzeSpecificPath('${path.replace(/'/g, '\\\'')}')" 
+                                title="深度分析此路径">
+                            详细分析
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function loadMockPathData() {
+            // 示例数据
+            const mockData = {
+                sankey: {
+                    nodes: [
+                        { name: '启动应用' },
+                        { name: '首页浏览' },
+                        { name: '商品搜索' },
+                        { name: '商品详情' },
+                        { name: '添加购物车' },
+                        { name: '提交订单' }
+                    ],
+                    links: [
+                        { source: 0, target: 1, value: 1000, sourceName: '启动应用', targetName: '首页浏览' },
+                        { source: 1, target: 2, value: 600, sourceName: '首页浏览', targetName: '商品搜索' },
+                        { source: 1, target: 3, value: 300, sourceName: '首页浏览', targetName: '商品详情' },
+                        { source: 2, target: 3, value: 400, sourceName: '商品搜索', targetName: '商品详情' },
+                        { source: 3, target: 4, value: 200, sourceName: '商品详情', targetName: '添加购物车' },
+                        { source: 4, target: 5, value: 80, sourceName: '添加购物车', targetName: '提交订单' }
+                    ]
+                },
+                stepDistribution: {
+                    steps: [
+                        { value: 35, name: '2-3步路径' },
+                        { value: 30, name: '4-5步路径' },
+                        { value: 25, name: '6-8步路径' },
+                        { value: 10, name: '9步以上' }
+                    ]
+                },
+                pathConversion: {
+                    totalUsers: 1000,
+                    funnelData: [
+                        { value: 1000, name: '启动应用' },
+                        { value: 850, name: '浏览首页' },
+                        { value: 600, name: '搜索商品' },
+                        { value: 350, name: '查看详情' },
+                        { value: 200, name: '添加购物车' },
+                        { value: 80, name: '提交订单' }
+                    ]
+                },
+                pathStats: {
+                    '启动应用 → 首页浏览 → 商品搜索': { count: 450, conversionRate: '75%', avgDuration: '85s' },
+                    '启动应用 → 首页浏览 → 商品详情': { count: 280, conversionRate: '68%', avgDuration: '120s' },
+                    '商品搜索 → 商品详情 → 添加购物车': { count: 180, conversionRate: '45%', avgDuration: '150s' },
+                    '商品详情 → 添加购物车 → 提交订单': { count: 75, conversionRate: '38%', avgDuration: '200s' }
+                }
+            };
+            
+            renderPathFlowChart(mockData.sankey);
+            renderStepDistributionChart(mockData.stepDistribution);
+            renderPathConversionChart(mockData.pathConversion);
+            updatePathTable(mockData.pathStats);
+        }
+
+        function resetFilters() {
+            // 重置选项选择（保持核心事件选中）
+            document.querySelectorAll('#optionsGrid input[type="checkbox"]').forEach(cb => {
+                const isCore = cb.value.includes('$MPLaunch') || 
+                              cb.value.includes('$MPShow') || 
+                              cb.value.includes('$MPViewScreen');
+                cb.checked = isCore;
+                const optionItem = cb.closest('.option-item');
+                if (isCore) {
+                    optionItem.classList.add('selected');
+                } else {
+                    optionItem.classList.remove('selected');
+                }
+            });
+            
+            // 重置路径定义
+            document.querySelector('input[name="pathType"][value="start"]').checked = true;
+            handlePathTypeChange();
+            document.getElementById('startOptionSelect').value = '';
+            document.getElementById('endOptionSelect').value = '';
+            
+            // 重置其他条件
+            document.getElementById('pathLength').value = 'all';
+            document.getElementById('minConversions').value = '5';
+            document.getElementById('timeRange').value = 'last7days';
+            document.getElementById('pageFilter').value = '';
+            
+            updateSelectionSummary();
+            updatePathDefinitionOptions();
+        }
+
+        function analyzeSpecificPath(path) {
+            alert(`详细分析路径: ${path}\n\n此功能将显示该路径的：\n- 用户分布特征\n- 每步停留时间\n- 流失原因分析\n- 优化建议`);
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('用户路径分析页面加载完成');
+            initCharts();
+            loadAnalysisOptions();
+            
+            // 延迟加载初始数据
+            setTimeout(() => {
+                if (getSelectedOptions().length > 0) {
+                    analyzeUserPath();
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
